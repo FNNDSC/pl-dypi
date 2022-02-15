@@ -1,0 +1,4 @@
+chris_plugin~=0.0.10
+python-chrisclient
+caw
+pudb

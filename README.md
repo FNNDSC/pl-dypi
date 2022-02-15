@@ -8,7 +8,7 @@
 
 ## Abstract
 
-Creating trees of compute that are conditional to some characteristic of the input data can be hard to create _a priori_ and are often more easily/efficiently handled on a case-by-case basis. In some ways, this problem relates to strategies of static and dynamic structure in design patterning. While some behavior can be determined from a static analysis of some data space, true responsiveness to a problem can sometimes best be done dynamically. 
+Creating trees of compute that are conditional to some characteristic of the data being computed can be hard to create _a priori_ and are often more easily/efficiently handled on a case-by-case basis. In some ways, this problem relates to strategies of static and dynamic structure in design patterning. While some behavior can be determined from a static analysis of some data space, true responsiveness to a problem can sometimes best be done dynamically. 
 
 Examples of this problem in the context of ChRIS include cases where some (usually) input node contains a collection of objects (files, directories, etc) and some object-specific compute is required for each object (or some subset of objects) to be performed in parallel by pre-existing pipelines of plugins.
 

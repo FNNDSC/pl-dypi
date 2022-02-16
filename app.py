@@ -20,16 +20,21 @@ parser.add_argument(
 )
 parser.add_argument(
             '-d', '--dirsOnly',
-            type    = bool,
-            action  = 'store_true' 
+            action  = 'store_true',
             default = False,
             help    = 'if specified, only filter directories, not files'
 )
 parser.add_argument(
-            'p', '--pipeline',
+            '-P', '--pipeline',
             default = '',
             help    = 'pipeline string to execute on filtered child node'
 )
+parser.add_argument(
+            '-i', '--pluginInstanceID',
+            default = '',
+            help    = 'plugin instance ID containing data space on which to dynamically build'
+)
+
 
 def unconditionalPass(str_object: str) -> bool:
     '''
@@ -37,14 +42,15 @@ def unconditionalPass(str_object: str) -> bool:
     '''
     return True
 
-def tree_dynamicBuild(input: Path, output: Path) -> dict:
+def tree_grow(input: Path, output: Path, env: data) -> dict:
     '''
-    Based on some evaluation of the <input> execute some
-    specific behaviour
+    Based on some conditional of the <input> direct the
+    dynamic "growth" of this feed tree from the parent node
+    of *this* plugin.
     '''
     conditional             = behavior.Filter()
     conditional.obj_pass    = unconditionalPass
-    dircopy                 = action.PluginRun()
+    dircopy                 = action.PluginRun(env = env)
     caw                     = action.Caw()
 
     if conditional.obj_pass(str(input)):
@@ -54,7 +60,7 @@ def tree_dynamicBuild(input: Path, output: Path) -> dict:
 # documentation: https://fnndsc.github.io/chris_plugin/
 @chris_plugin(
     parser              = parser,
-    title               = 'My ChRIS plugin',
+    title               = 'Dynamic Pipeline/plugin generator',
     category            = '',                   # ref. https://chrisstore.co/plugins
     min_memory_limit    = '100Mi',              # supported units: Mi, Gi
     min_cpu_limit       = '1000m',              # millicores, e.g. "1000m" = 1 CPU core
@@ -63,12 +69,20 @@ def tree_dynamicBuild(input: Path, output: Path) -> dict:
 def main(options: Namespace, inputdir: Path, outputdir: Path):
     pudb.set_trace()
 
-    if options.dirsOnly:
-        mapper  = PathMapper(inputdir, outputdir, glob=options.pattern, only_files = False)
+    Env                     = data.CUBEinstance()
+    if len(options.pluginInstanceID):
+        Env.parentPluginInstanceID    = options.pluginInstanceID
     else:
-        mapper = PathMapper(inputdir, outputdir, glob=options.pattern)
-    for input, output in mapper:
-        tree_dynamicBuild(input, output)
+        Env.parentPluginInstanceID_discover()
+    if len(Env.parentPluginInstanceID):
+        # are we branching off dirs or files?
+        if options.dirsOnly:
+            mapper  = PathMapper(inputdir, outputdir, glob=options.pattern, only_files = False)
+        else:
+            mapper = PathMapper(inputdir, outputdir, glob=options.pattern)
+
+        for input, output in mapper:
+            tree_grow(input, output, Env)
 
 
 if __name__ == '__main__':

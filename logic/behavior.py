@@ -9,3 +9,15 @@ str_about = '''
 '''
 
 
+class Filter:
+    '''
+    An abstraction for evaluating a "condition" on some "object".
+    '''
+
+    def __init__(self, *args, **kwargs):
+        # point this to a function with signature
+        # <filterOp>(<str_object> : str) : bool
+        self.filterOp = None 
+
+    def obj_pass(self, str_object: str) -> bool: 
+        return self.filterOp(str_object)

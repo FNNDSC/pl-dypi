@@ -13,25 +13,51 @@ class CUBEinstance:
 
     def __init__(self, *args, **kwargs):
         self.d_CUBE = {
-            'username'  : 'chris',
+            'user'      : 'chris',
             'password'  : 'chris1234',
-            'IP'        : 'localhost',
-            'port'      : ':8000',
+            'address'   : 'localhost',
+            'port'      : '8000',
             'route'     : '/api/v1/',
-            'protocol'  : 'http:',
+            'protocol'  : 'http://',
             'url'       : ''
+        }
+        self.parentPluginInstanceID   = ''
+
+    def onCUBE(self) -> dict:
+        '''
+        Return a dictionary that is a subset of self.d_CUBE
+        suitable for using in calls to the CLI tool 'chrispl-run'
+        '''
+        return {
+            'protocol': self('protocol'),
+            'port':     self('port'),
+            'address':  self('address'),
+            'user':     self('user'),
+            'password': self('password')
+        }
+
+    def parentPluginInstanceID_discover(self) -> dict:
+        '''
+        Determine the pluginInstanceID of the parent plugin
+        '''
+        return {
+            'parentPluginInstanceID':   "-1"
         }
 
     def url(self, *args):
         '''
         get/set the URL
         '''
+        str_colon : str = ""
+        if len(self.d_CUBE['port']):
+            str_colon   = ":"
         if len(args):
             self.d_CUBE['url']  = args[0]
         else:
-            self.d_CUBE['url']  = '%s%s%s%s' % (
+            self.d_CUBE['url']  = '%s%s%s%s%s' % (
                 self.d_CUBE['protocol'],
-                self.d_CUBE['IP'],
+                self.d_CUBE['address'],
+                str_colon,
                 self.d_CUBE['port'],
                 self.d_CUBE['route']
             )
@@ -63,4 +89,3 @@ class Pipeline:
 
         self.str_pipelineName       = ''
 
-        

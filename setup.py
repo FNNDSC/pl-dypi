@@ -6,11 +6,12 @@ setup(
     description      = 'A ChRIS DS plugin template',
     author           = 'FNNDSC',
     author_email     = 'dev@babyMRI.org',
-    url              = 'https://github.com/FNNDSC/python-chrisapp-template',
+    url              = 'https://github.com/FNNDSC/pl-dypi',
     py_modules       = ['app'],
     install_requires = ['chris_plugin'],
     license          = 'MIT',
     python_requires  = '>=3.8.2',
+    packages         = ['control', 'logic', 'state'],
     entry_points     = {
         'console_scripts': [
             'dypi = app:main'

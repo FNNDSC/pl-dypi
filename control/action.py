@@ -186,12 +186,46 @@ class PluginRun:
     to CUBE.
     '''
     def __init__(self, *args, **kwargs):
-        self.env        = None
-        self.plugin     = ''
-        self.shell      = jobber({'verbosity' : 1, 'noJobLogging': True})
+        self.env                = None
+        self.plugin             = ''
+        self.shell              = jobber({'verbosity' : 1, 'noJobLogging': True})
+        self.attachToPluginID   = ''
+        for k, v in kwargs.items():
+            if k == 'attachToPluginID'  :   self.attachToPluginID   = v
+            if k == 'env'               :   self.env                = v
 
     def do(self):
         self.shell.job_run('chrispl-run ...')
+
+    def __call__(self, str_input : str):
+        '''
+        Copy the <str_input> to the output using pl-pfdorun
+        '''
+        # Remove the '/incoming/' from the str_input
+        str_inputTopLevel : str = str_input.split('/')[2]
+        str_args="""
+            --fileFilter=%s;
+            --exec='cp %%inputWorkingDir/%%inputWorkingFile %%outputWorkingDir/%%outputWorkingFile';
+            --verbose=5
+        """ % str_inputTopLevel
+        str_args = str_args.strip().replace('\n', '')
+
+        str_onCUBE : str    = json.dumps(self.env.onCUBE())
+        if len(self.env.parentPluginInstanceID):
+            str_cmd = """
+                chrispl-run --plugin name=pl-pfdorun \\
+                            --onCUBE='%s' \\
+                            --args="%s" \\
+                            --previous_id=%s
+            """ % (
+                str_onCUBE,
+                str_args,
+                self.env.parentPluginInstanceID
+            )
+            print(str_cmd)
+        return {
+            'filteredCopyInstanceID': 0
+        }
 
 class Caw:
     '''
@@ -206,3 +240,9 @@ class Caw:
 
     def do(self):
         self.shell.job_run('caw ...')
+
+    def __call__(self, filteredCopyInstanceID : dict):
+        '''
+        Call caw on the appropriate plugin instance ID
+        '''
+        pass

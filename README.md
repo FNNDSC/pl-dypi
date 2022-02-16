@@ -8,7 +8,9 @@
 
 ## Abstract
 
-Creating trees of compute that are conditional to some characteristic of the data being computed can be hard to create _a priori_ and are often more easily/efficiently handled on a case-by-case basis. In some ways, this problem relates to strategies of static and dynamic structure in design patterning. While some behavior can be determined from a static analysis of the larger compute logic, this can result in complex overgeneralization as all possible compute paths might need to be considered -- imagine a tree that enumerates all possible branches from all possible data components. Even the apparently simpler problem of expressing logic such as "at this node generate _N_ parallel branches conditional to this _paramater_" and then explicitly compiling/generating the resultant _explicit_ static tree can become complex -- this requires developing a syntax for describing tree logic and then coding a compiler that can understand this syntax and compile/create the resulting description.
+Creating trees of compute that are conditional to some characteristic of the data being computed can be hard to create _a priori_. Such trees have a dynamic and hence variable topology that depends on individual compute _as it is being computed_.
+
+One approach to address such trees is to determine the structure _programmatically_ and handle the tree construction in-place by a plugin that examines upstream data and has the logic to reactively build tree branches. In some ways, this problem relates to strategies of static and dynamic structure in design patterning. While some behavior can be determined from a static analysis of the larger compute logic, this can result in complex overgeneralization as all possible compute paths might need to be considered -- imagine a tree that enumerates all possible branches from all possible data components. Even the apparently simpler problem of expressing logic such as "at this node generate _N_ parallel branches conditional to this _paramater_" and then explicitly compiling/generating the resultant _explicit_ static tree can become complex -- this requires developing a syntax for describing tree logic and then coding a compiler that can understand this syntax and compile/create the resulting description.
 
 Based on this insight, perhaps a simpler approach is just to develop a program (or a class of programs) that can analyze the input space and at run/execute time determine the resulting branching structure. In other words, perhaps easiest to resolve the tree _dynamically_ in a programmatic fashion. Codify the logic itself as a program. 
 
@@ -61,18 +63,24 @@ Run latest versions of code without rebuilding the docker image:
 
 ```shell
 docker run --rm -it --userns=host -u $(id -u):$(id -g) \
-    -v $PWD/app.py:/usr/local/lib/python3.10/site-packages/app.py:ro \
-    -v $PWD/in:/incoming:ro -v $PWD/out:/outgoing:rw -w /outgoing \
-    localhost/fnndsc/pl-dypi dypi /incoming /outgoing
+           -v  $PWD/app.py:/usr/local/lib/python3.10/site-packages/app.py:ro \
+           -v $PWD/control:/usr/local/lib/python3.10/site-packages/control:ro \
+           -v   $PWD/logic:/usr/local/lib/python3.10/site-packages/logic:ro \
+           -v   $PWD/state:/usr/local/lib/python3.10/site-packages/state:ro \
+           -v $PWD/in:/incoming:ro -v $PWD/out:/outgoing:rw -w /outgoing \
+           localhost/fnndsc/pl-dypi dypi /incoming /outgoing
 ```
 
 Run latest versions of code without rebuilding the docker image suitable for debugging (running as non-root causes issues with `pudb`): 
 
 ```shell
-docker run --rm -it --userns=host  \
-    -v $PWD/app.py:/usr/local/lib/python3.10/site-packages/app.py:ro \
-    -v $PWD/in:/incoming:ro -v $PWD/out:/outgoing:rw -w /outgoing \
-    localhost/fnndsc/pl-dypi dypi /incoming /outgoing
+ docker run --rm -it --userns=host  \
+           -v  $PWD/app.py:/usr/local/lib/python3.10/site-packages/app.py:ro \
+           -v $PWD/control:/usr/local/lib/python3.10/site-packages/control:ro \
+           -v   $PWD/logic:/usr/local/lib/python3.10/site-packages/logic:ro \
+           -v   $PWD/state:/usr/local/lib/python3.10/site-packages/state:ro \
+           -v $PWD/in:/incoming:ro -v $PWD/out:/outgoing:rw -w /outgoing \
+           localhost/fnndsc/pl-dypi dypi /incoming /outgoing
 ```
 
 _-30-_

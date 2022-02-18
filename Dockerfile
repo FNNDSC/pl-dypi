@@ -9,6 +9,11 @@ LABEL org.opencontainers.image.authors="FNNDSC <dev@babyMRI.org>" \
 
 WORKDIR /usr/local/src/app
 
+RUN apt update &&                   \
+    apt install -y vim &&           \
+    apt install -y iputils-ping &&  \
+    apt install -y net-tools
+
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 

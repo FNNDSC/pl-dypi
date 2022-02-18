@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name             = 'chris-plugin-template',
-    version          = '1.0.0',
-    description      = 'A ChRIS DS plugin template',
+    name             = 'dypi',
+    version          = '1.0.2',
+    description      = 'A ChRIS DS plugin that grows compute trees during execution',
     author           = 'FNNDSC',
     author_email     = 'dev@babyMRI.org',
     url              = 'https://github.com/FNNDSC/pl-dypi',

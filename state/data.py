@@ -15,10 +15,10 @@ class CUBEinstance:
         self.d_CUBE = {
             'user'      : 'chris',
             'password'  : 'chris1234',
-            'address'   : 'localhost',
+            'address'   : '192.168.1.200',
             'port'      : '8000',
             'route'     : '/api/v1/',
-            'protocol'  : 'http://',
+            'protocol'  : 'http',
             'url'       : ''
         }
         self.parentPluginInstanceID   = ''
@@ -54,13 +54,14 @@ class CUBEinstance:
         if len(args):
             self.d_CUBE['url']  = args[0]
         else:
-            self.d_CUBE['url']  = '%s%s%s%s%s' % (
+            self.d_CUBE['url']  = '%s://%s%s%s%s' % (
                 self.d_CUBE['protocol'],
                 self.d_CUBE['address'],
                 str_colon,
                 self.d_CUBE['port'],
                 self.d_CUBE['route']
             )
+        return self.d_CUBE['url']
 
     def set(self, str_key, str_val):
         '''

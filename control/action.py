@@ -1,17 +1,12 @@
 str_about = '''
     The action module provides functionality to run individual
     plugins as well as "pipelines" of plugins. It is the interface
-    between the plugin and a CUBE API.
+    between the plugin and a CUBE API via the CLI.
 '''
-
-str_description = """
-    This module provides some very simple shell-based job running
-    methods.
-"""
-
 
 import  subprocess
 import  os
+import  re
 import  pudb
 import  json
 
@@ -128,6 +123,8 @@ class jobber:
         d_ret['stdout']     = str_stdout
         d_ret['stderr']     = p.stderr.read().decode()
         d_ret['returncode'] = p.returncode
+        with open('/tmp/job.json', 'w') as f:
+            json.dump(d_ret, f, indent=4)
         if int(self.args['verbosity']) and len(d_ret['stderr']):
             print('\nstderr: \n%s' % d_ret['stderr'])
         return d_ret
@@ -182,49 +179,82 @@ class jobber:
 
 class PluginRun:
     '''
-    A class wrapper about the CLI tool "chrispl-run" that POSTs a plugin
+    A class wrapper about the CLI tool "chrispl-run" that POSTs a pl-pfdorun
     to CUBE.
     '''
     def __init__(self, *args, **kwargs):
         self.env                = None
         self.plugin             = ''
-        self.shell              = jobber({'verbosity' : 1, 'noJobLogging': True})
-        self.attachToPluginID   = ''
+        self.shell              : jobber    = jobber({'verbosity' : 1, 'noJobLogging': True})
+        self.attachToPluginID   : str       = ''
         for k, v in kwargs.items():
             if k == 'attachToPluginID'  :   self.attachToPluginID   = v
             if k == 'env'               :   self.env                = v
 
-    def do(self):
-        self.shell.job_run('chrispl-run ...')
+        self.l_runCMDresp       : list  = []
+        self.l_branchInstanceID : list  = []
 
-    def __call__(self, str_input : str):
+    def PLpfdorun_args(self, str_input : str) -> dict:
+        '''
+        Return the argument string pertinent to the pl-pfdorun plugin
+        '''
+        str_args : str = """
+            --fileFilter=%s;
+            --exec='cp %%inputWorkingDir/%%inputWorkingFile %%outputWorkingDir/%%inputWorkingFile';
+            --noJobLogging;
+            --verbose=5;
+            --title=%s;
+            --previous_id=%s
+        """ % (str_input, str_input, self.env.parentPluginInstanceID)
+        str_args = re.sub(r';\n.*--', ';--', str_args) 
+        str_args = str_args.strip()
+        return {
+            'args':     str_args
+        }
+
+    def chrispl_onCUBEargs(self):
+        '''
+        Return a string specifying the CUBE instance
+        '''
+        return {
+            'onCUBE':  json.dumps(self.env.onCUBE())
+        }
+
+    def chrispl_run_cmd(self, str_inputData : str) -> dict:
+        '''
+        Return the CLI for the chrispl_run
+        '''
+        str_cmd = """chrispl-run --plugin name=pl-pfdorun --args="%s" --onCUBE %s""" % (
+                self.PLpfdorun_args(str_inputData)['args'],
+                json.dumps(self.chrispl_onCUBEargs()['onCUBE'], indent = 4)
+            )
+        str_cmd = str_cmd.strip().replace('\n', '')
+        return {
+            'cmd' : str_cmd
+        }
+
+    def __call__(self, str_input : str) ->dict:
         '''
         Copy the <str_input> to the output using pl-pfdorun
         '''
         # Remove the '/incoming/' from the str_input
-        str_inputTopLevel : str = str_input.split('/')[2]
-        str_args="""
-            --fileFilter=%s;
-            --exec='cp %%inputWorkingDir/%%inputWorkingFile %%outputWorkingDir/%%outputWorkingFile';
-            --verbose=5
-        """ % str_inputTopLevel
-        str_args = str_args.strip().replace('\n', '')
+        str_inputTarget     : str   = str_input.split('/')[2]
+        d_PLCmd             : dict  = self.chrispl_run_cmd(str_inputTarget)
+        str_PLCmd           : str   = d_PLCmd['cmd'] 
+        str_PLCmdfile       : str   = '/tmp/%s.sh' % str_inputTarget
 
-        str_onCUBE : str    = json.dumps(self.env.onCUBE())
-        if len(self.env.parentPluginInstanceID):
-            str_cmd = """
-                chrispl-run --plugin name=pl-pfdorun \\
-                            --onCUBE='%s' \\
-                            --args="%s" \\
-                            --previous_id=%s
-            """ % (
-                str_onCUBE,
-                str_args,
-                self.env.parentPluginInstanceID
-            )
-            print(str_cmd)
+        with open(str_PLCmdfile, 'w') as f:
+            f.write('#!/bin/bash\n')
+            f.write(str_PLCmd)
+        os.chmod(str_PLCmdfile, 0o755)
+        d_runCMDresp        : dict  = self.shell.job_run(str_PLCmdfile)
+        if not d_runCMDresp['returncode']:
+            self.l_runCMDresp.append(d_runCMDresp)
+            branchID        : int   = d_runCMDresp['stdout'].split()[2]
+            self.l_branchInstanceID.append(branchID)
+
         return {
-            'filteredCopyInstanceID': 0
+            'branchInstanceID': branchID
         }
 
 class Caw:
@@ -234,15 +264,62 @@ class Caw:
     '''
 
     def __init__(self, *args, **kwargs):
-        self.env        = None
-        self.pipeline   = ''
-        self.shell      = jobber({'verbosity' : 1, 'noJobLogging': True})
+        self.env                = None
+        self.pipeline           : str       = ''
+        self.shell              : jobber    =  jobber({'verbosity' : 1, 'noJobLogging': True})
+        self.attachToPluginID   : str       = ''
+        for k, v in kwargs.items():
+            if k == 'attachToPluginID'  :   self.attachToPluginID   = v
+            if k == 'env'               :   self.env                = v
+        self.l_runCMDresp       : list  = []
 
-    def do(self):
-        self.shell.job_run('caw ...')
+    def pipeline(self, *args) -> str:
+        '''
+        pipeline name get/set
+        '''
+        if len(args):
+            self.pipeline   = args[0]
+        return self.pipeline
 
-    def __call__(self, filteredCopyInstanceID : dict):
+    def caw_argsCore(self) -> dict:
+        '''
+        Return the argument string pertinent to the caw
+        '''
+        str_args : str = """
+            --address %s --username %s --password %s
+        """ % (
+            self.env.url(), self.env('user'), self.env('password')
+        )
+        return {
+            'args': str_args
+        }
+
+    def caw_run_cmd(self, attachToPluginID: int, pipeline: str) -> dict:
+        '''
+        Return the CLI for the caw call
+        '''
+        str_cmd = """caw %s pipeline --target %s "%s" """ % (
+            self.caw_argsCore()['args'], attachToPluginID, pipeline
+        )
+        str_cmd = str_cmd.strip().replace('\n', '')
+        return {
+            'cmd' : str_cmd
+        }
+
+    def __call__(self, filteredCopyInstanceID : dict, str_pipeline : str) -> dict:
         '''
         Call caw on the appropriate plugin instance ID
         '''
-        pass
+        d_cawCmd            : dict  = self.caw_run_cmd(filteredCopyInstanceID, str_pipeline)
+        str_cawCmd          : str   = d_cawCmd['cmd'] 
+        str_cawCmdfile      : str   = '/tmp/caw-%s.sh' % filteredCopyInstanceID
+
+        with open(str_cawCmdfile, 'w') as f:
+            f.write('#!/bin/bash\n')
+            f.write(str_cawCmd)
+        os.chmod(str_cawCmdfile, 0o755)
+        d_runCMDresp        : dict  = self.shell.job_run(str_cawCmdfile)
+        return {
+            'response'      : d_runCMDresp
+        }
+       

@@ -12,7 +12,12 @@ from    state                   import data
 from    logic                   import behavior
 from    control                 import action
 
-parser = ArgumentParser(description='ChRIS DS plugin that creates responsive/dynamic compute trees.')
+
+Env             = data.CUBEinstance()
+PLinputFilter   = action.PluginRun(env = Env)
+CAW             = action.Caw(env = Env)
+
+parser      = ArgumentParser(description='ChRIS DS plugin that creates responsive/dynamic compute trees based on some logic applied over the input space')
 parser.add_argument(
             '-p', '--pattern', 
             default = '**/*',
@@ -32,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
             '-i', '--pluginInstanceID',
             default = '',
-            help    = 'plugin instance ID containing data space on which to dynamically build'
+            help    = 'plugin instance ID from which to grow a tree'
 )
 
 
@@ -42,34 +47,35 @@ def unconditionalPass(str_object: str) -> bool:
     '''
     return True
 
-def tree_grow(input: Path, output: Path, env: data) -> dict:
+def tree_grow(options: Namespace, input: Path, output: Path) -> dict:
     '''
     Based on some conditional of the <input> direct the
     dynamic "growth" of this feed tree from the parent node
     of *this* plugin.
     '''
+    global Env, PLinputFilter, CAW
+
     conditional             = behavior.Filter()
     conditional.obj_pass    = unconditionalPass
-    dircopy                 = action.PluginRun(env = env)
-    caw                     = action.Caw()
 
     if conditional.obj_pass(str(input)):
-        d_copy          = dircopy(str(input))
-        d_caw           = caw(d_copy)
+        d_nodeInput         = PLinputFilter(str(input))
+        if len(options.pipeline):
+            d_caw           = CAW(d_nodeInput['branchInstanceID'], 
+                                  options.pipeline)
 
 # documentation: https://fnndsc.github.io/chris_plugin/
 @chris_plugin(
     parser              = parser,
     title               = 'Dynamic Pipeline/plugin generator',
-    category            = '',                   # ref. https://chrisstore.co/plugins
+    category            = 'Topological',        # ref. https://chrisstore.co/plugins
     min_memory_limit    = '100Mi',              # supported units: Mi, Gi
     min_cpu_limit       = '1000m',              # millicores, e.g. "1000m" = 1 CPU core
     min_gpu_limit       = 0                     # set min_gpu_limit=1 to enable GPU
 )
 def main(options: Namespace, inputdir: Path, outputdir: Path):
-    pudb.set_trace()
-
-    Env                     = data.CUBEinstance()
+    global Env, PLinputFilter, CAW
+    # pudb.set_trace()
     if len(options.pluginInstanceID):
         Env.parentPluginInstanceID    = options.pluginInstanceID
     else:
@@ -82,7 +88,7 @@ def main(options: Namespace, inputdir: Path, outputdir: Path):
             mapper = PathMapper(inputdir, outputdir, glob=options.pattern)
 
         for input, output in mapper:
-            tree_grow(input, output, Env)
+            tree_grow(options, input, output)
 
 
 if __name__ == '__main__':

@@ -242,6 +242,8 @@ class PluginRun:
         d_PLCmd             : dict  = self.chrispl_run_cmd(str_inputTarget)
         str_PLCmd           : str   = d_PLCmd['cmd'] 
         str_PLCmdfile       : str   = '/tmp/%s.sh' % str_inputTarget
+        branchID            : int   = -1
+        b_status            : bool  = False
 
         with open(str_PLCmdfile, 'w') as f:
             f.write('#!/bin/bash\n')
@@ -249,12 +251,17 @@ class PluginRun:
         os.chmod(str_PLCmdfile, 0o755)
         d_runCMDresp        : dict  = self.shell.job_run(str_PLCmdfile)
         if not d_runCMDresp['returncode']:
+            b_status                = True
             self.l_runCMDresp.append(d_runCMDresp)
             branchID        : int   = d_runCMDresp['stdout'].split()[2]
             self.l_branchInstanceID.append(branchID)
+        else:
+            b_status                = False
 
         return {
-            'branchInstanceID': branchID
+            'status'            : b_status,
+            'run'               : d_runCMDresp,
+            'branchInstanceID'  : branchID
         }
 
 class Caw:

@@ -40,7 +40,7 @@ While this provides a powerful mechanism to execute advanced compute workflows i
 
 One solution to the dynamic workflow problem that does not require some external agent to execute is to describe the workflow somehow abstractly. ChRIS currently provides support for static sub-sets of a compute tree of linked plugins -- called ``pipelines`` or ``workflows``. These can be described as JSON files that explicitly describe the interconnectedness and relationship between a set of plugins, together with the parameter values for each plugin.
 
-Unfortunately, at time of writing, these descriptions are completely _static_. While possible to create some ``pipeline`` language that contains the logic, this language, syntax, support and behavior would need to be created. Existing solutions do exist, such as the Workflow Description Language (WDL)[https://github.com/openwdl/wdl] and others - and perhaps providing WDL or some subset thereof support to ChRIS could be attempted. Still this could be a complex engineering endeavor and unlikely to an immediate / simple short term solution.
+Unfortunately, at time of writing, these descriptions are completely _static_. While possible to create some ``pipeline`` language that contains the logic, this language, syntax, support and behavior would need to be created. Existing solutions do exist, such as the Workflow Description Language [WDL](https://github.com/openwdl/wdl) and others - and perhaps providing WDL or some subset thereof support to ChRIS could be attempted. Still this could be a complex engineering endeavor and unlikely to an immediate / simple short term solution.
 
 ### Enter containers
 

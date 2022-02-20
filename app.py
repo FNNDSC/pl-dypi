@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
-from distutils.log import Log
+from    distutils.log           import Log
 from    multiprocessing.spawn   import import_main_path
 from    pathlib                 import Path
 from    argparse                import ArgumentParser, Namespace
 from    chris_plugin            import chris_plugin, PathMapper
 from    loguru                  import logger
+from    pathlib                 import Path
 
+import  os
 import  pudb
 
 from    state                   import data
@@ -50,6 +52,19 @@ parser.add_argument(
             help    = 'verbosity level of app'
 )
 
+def inputdir_listFiles(input: Path):
+    '''
+    List the files in Path -- mostly for debugging
+    '''
+    global LOG
+
+    LOG("Listing files in %s" % str(input))
+    # read the entries
+    with os.scandir(str(input)) as listOfEntries:
+        for entry in listOfEntries:
+            # print all entries that are files
+            if entry.is_file():
+                LOG(entry.name)
 
 def unconditionalPass(str_object: str) -> bool:
     '''
@@ -99,6 +114,12 @@ def main(options: Namespace, inputdir: Path, outputdir: Path):
     LOG                 = PFMlogger.qprint
 
     LOG("Starting application...")
+    for k,v in options.__dict__.items():
+         LOG("%25s:  [%s]" % (k, v))
+    LOG("")
+    LOG("inputdir  = %s" % str(inputdir))        
+    LOG("outputdir = %s" % str(outputdir))        
+    inputdir_listFiles(inputdir)
 
     if len(options.pluginInstanceID):
         Env.parentPluginInstanceID    = options.pluginInstanceID
@@ -107,14 +128,18 @@ def main(options: Namespace, inputdir: Path, outputdir: Path):
     if len(Env.parentPluginInstanceID):
         # are we branching off dirs or files?
         if options.dirsOnly:
-            mapper  = PathMapper(inputdir, outputdir, glob=options.pattern, only_files = False)
+            mapper = PathMapper(inputdir, outputdir, glob=options.pattern, only_files = False)
         else:
             mapper = PathMapper(inputdir, outputdir, glob=options.pattern)
+
+        LOG("Processing mapper...")
+        Path('%s/start.touch' % str(outputdir)).touch()
 
         for input, output in mapper:
             LOG("Growing a tree off new data root %s" % str(input))
             tree_grow(options, input, output)
 
+    LOG("Application terminating...")
 
 if __name__ == '__main__':
     main()

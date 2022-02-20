@@ -238,7 +238,7 @@ class PluginRun:
         Copy the <str_input> to the output using pl-pfdorun
         '''
         # Remove the '/incoming/' from the str_input
-        str_inputTarget     : str   = str_input.split('/')[2]
+        str_inputTarget     : str   = str_input.split('/')[-1]
         d_PLCmd             : dict  = self.chrispl_run_cmd(str_inputTarget)
         str_PLCmd           : str   = d_PLCmd['cmd'] 
         str_PLCmdfile       : str   = '/tmp/%s.sh' % str_inputTarget

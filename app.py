@@ -52,6 +52,21 @@ parser.add_argument(
             help    = 'verbosity level of app'
 )
 
+def inputdir_filterFiles(options: Namespace, input: Path) -> list:
+    '''
+    Filter the files in Path according to the passed options.pattern --
+    mostly for debugging
+    '''
+    global LOG
+    l_filtered  : list = []
+
+    LOG("Filtering files in %s containing '%s'" % (str(input), options.pattern))
+
+    l_filtered = ['%s/%s' % (str(input), fn) \
+                    for fn in os.listdir(str(input)) if options.pattern in fn]
+    for entry in l_filtered: LOG(entry)
+    return l_filtered
+
 def inputdir_listFiles(input: Path):
     '''
     List the files in Path -- mostly for debugging
@@ -72,7 +87,7 @@ def unconditionalPass(str_object: str) -> bool:
     '''
     return True
 
-def tree_grow(options: Namespace, input: Path, output: Path) -> dict:
+def tree_grow(options: Namespace, input: Path, output: Path = None) -> dict:
     '''
     Based on some conditional of the <input> direct the
     dynamic "growth" of this feed tree from the parent node
@@ -84,6 +99,7 @@ def tree_grow(options: Namespace, input: Path, output: Path) -> dict:
     conditional.obj_pass    = unconditionalPass
 
     if conditional.obj_pass(str(input)):
+        LOG("Tree planted off %s" % str(input))
         d_nodeInput         = PLinputFilter(str(input))
         if d_nodeInput['status']:
             if len(options.pipeline):
@@ -113,13 +129,14 @@ def main(options: Namespace, inputdir: Path, outputdir: Path):
                                         )     
     LOG                 = PFMlogger.qprint
 
+    # pudb.set_trace()
     LOG("Starting application...")
     for k,v in options.__dict__.items():
          LOG("%25s:  [%s]" % (k, v))
     LOG("")
     LOG("inputdir  = %s" % str(inputdir))        
     LOG("outputdir = %s" % str(outputdir))        
-    inputdir_listFiles(inputdir)
+    l_files         = inputdir_filterFiles(options, inputdir)
 
     if len(options.pluginInstanceID):
         Env.parentPluginInstanceID    = options.pluginInstanceID
@@ -134,8 +151,10 @@ def main(options: Namespace, inputdir: Path, outputdir: Path):
 
         LOG("Processing mapper...")
         Path('%s/start.touch' % str(outputdir)).touch()
+        output = None
 
-        for input, output in mapper:
+        # for input, output in mapper:
+        for input in l_files:
             LOG("Growing a tree off new data root %s" % str(input))
             tree_grow(options, input, output)
 

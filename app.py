@@ -14,21 +14,26 @@ import  pudb
 from    state                   import data
 from    logic                   import behavior
 from    control                 import action
+from    control.filter          import PathFilter
 
 import  pfmisc
 from    pfmisc._colors          import Colors
 
 Env             = data.CUBEinstance()
-PLinputFilter   = action.PluginRun(env = Env)
-CAW             = action.Caw(env = Env)
+CAW             = None
+PLinputFilter   = None
 PFMlogger       = None
 LOG             = None
 
-parser      = ArgumentParser(description='ChRIS DS plugin that creates responsive/dynamic compute trees based on some logic applied over the input space')
+parser          = ArgumentParser(
+    description = '''
+    dypi is a ChRIS DS plugin that creates responsive/dynamic compute trees
+    based on some logic applied over the input space'
+    ''')
 parser.add_argument(
-            '-p', '--pattern', 
+            '-p', '--pattern',
             default = '**/*',
-            help    = 'pattern for file names to include'
+            help    = 'pattern for file names to include (you should quote this!)'
 )
 parser.add_argument(
             '-d', '--dirsOnly',
@@ -52,41 +57,6 @@ parser.add_argument(
             help    = 'verbosity level of app'
 )
 
-def inputdir_filterFiles(options: Namespace, input: Path) -> list:
-    '''
-    Filter the files in Path according to the passed options.pattern --
-    mostly for debugging
-    '''
-    global LOG
-    l_filtered  : list = []
-
-    LOG("Filtering files in %s containing '%s'" % (str(input), options.pattern))
-
-    l_filtered = ['%s/%s' % (str(input), fn) \
-                    for fn in os.listdir(str(input)) if options.pattern in fn]
-    for entry in l_filtered: LOG(entry)
-    return l_filtered
-
-def inputdir_listFiles(input: Path):
-    '''
-    List the files in Path -- mostly for debugging
-    '''
-    global LOG
-
-    LOG("Listing files in %s" % str(input))
-    # read the entries
-    with os.scandir(str(input)) as listOfEntries:
-        for entry in listOfEntries:
-            # print all entries that are files
-            if entry.is_file():
-                LOG(entry.name)
-
-def unconditionalPass(str_object: str) -> bool:
-    '''
-    If a more complex conditional is required, code it here.
-    '''
-    return True
-
 def tree_grow(options: Namespace, input: Path, output: Path = None) -> dict:
     '''
     Based on some conditional of the <input> direct the
@@ -96,15 +66,16 @@ def tree_grow(options: Namespace, input: Path, output: Path = None) -> dict:
     global Env, PLinputFilter, CAW, LOG
 
     conditional             = behavior.Filter()
-    conditional.obj_pass    = unconditionalPass
+    conditional.obj_pass    = behavior.unconditionalPass
 
     if conditional.obj_pass(str(input)):
         LOG("Tree planted off %s" % str(input))
         d_nodeInput         = PLinputFilter(str(input))
         if d_nodeInput['status']:
             if len(options.pipeline):
-                d_caw           = CAW(d_nodeInput['branchInstanceID'], 
-                                    options.pipeline)
+                d_caw           = CAW(  d_nodeInput['branchInstanceID'],
+                                        options.pipeline,
+                                        str(input))
         else:
             LOG("Some error was returned from the node analysis!",  comms = 'error')
             LOG('stdout: %s' % d_nodeInput['run']['stdout'],        comms = 'error')
@@ -121,44 +92,49 @@ def tree_grow(options: Namespace, input: Path, output: Path = None) -> dict:
     min_gpu_limit       = 0                     # set min_gpu_limit=1 to enable GPU
 )
 def main(options: Namespace, inputdir: Path, outputdir: Path):
-    global Env, PLinputFilter, CAW, PFMlogger, LOG
-    PFMlogger           =  pfmisc.debug(
+    global Env, PFMlogger, LOG, CAW, PLinputFilter
+
+    PLinputFilter       = action.PluginRun( env = Env, options = options)
+    CAW                 = action.Caw(       env = Env, options = options)
+    PFMlogger           = pfmisc.debug(
                                         verbosity   = int(options.verbosity),
                                         within      = 'main',
                                         syslog      = True
-                                        )     
+                                        )
     LOG                 = PFMlogger.qprint
 
     # pudb.set_trace()
-    LOG("Starting application...")
+    LOG("Starting growth cycle...")
     for k,v in options.__dict__.items():
          LOG("%25s:  [%s]" % (k, v))
     LOG("")
-    LOG("inputdir  = %s" % str(inputdir))        
-    LOG("outputdir = %s" % str(outputdir))        
-    l_files         = inputdir_filterFiles(options, inputdir)
+    LOG("inputdir  = %s" % str(inputdir))
+    LOG("outputdir = %s" % str(outputdir))
 
     if len(options.pluginInstanceID):
         Env.parentPluginInstanceID    = options.pluginInstanceID
     else:
         Env.parentPluginInstanceID_discover()
-    if len(Env.parentPluginInstanceID):
-        # are we branching off dirs or files?
-        if options.dirsOnly:
-            mapper = PathMapper(inputdir, outputdir, glob=options.pattern, only_files = False)
-        else:
-            mapper = PathMapper(inputdir, outputdir, glob=options.pattern)
 
-        LOG("Processing mapper...")
+    if len(Env.parentPluginInstanceID):
+        LOG("Sewing seeds...")
         Path('%s/start.touch' % str(outputdir)).touch()
         output = None
 
-        # for input, output in mapper:
-        for input in l_files:
+        mapper  = PathMapper(inputdir, outputdir,
+                             glob       = options.pattern,
+                             only_files = not options.dirsOnly)
+
+        mapper  = PathFilter(inputdir, outputdir,
+                             glob       = options.pattern,
+                             logger     = LOG,
+                             only_files = not options.dirsOnly)
+
+        for input, output in mapper:
             LOG("Growing a tree off new data root %s" % str(input))
             tree_grow(options, input, output)
 
-    LOG("Application terminating...")
+    LOG("Ending growth cycle...")
 
 if __name__ == '__main__':
     main()

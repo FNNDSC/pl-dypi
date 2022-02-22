@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name             = 'dypi',
-    version          = '1.2.1',
+    version          = '2.0.0',
     description      = 'A ChRIS DS plugin that grows compute trees during execution',
     author           = 'FNNDSC',
     author_email     = 'dev@babyMRI.org',

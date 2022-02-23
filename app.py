@@ -4,6 +4,7 @@ from    distutils.log           import Log
 from    multiprocessing.spawn   import import_main_path
 from    pathlib                 import Path
 from    argparse                import ArgumentParser, Namespace
+
 from    chris_plugin            import chris_plugin, PathMapper
 from    loguru                  import logger
 from    pathlib                 import Path
@@ -33,7 +34,16 @@ parser          = ArgumentParser(
 parser.add_argument(
             '-p', '--pattern',
             default = '**/*',
-            help    = 'pattern for file names to include (you should quote this!)'
+            help    = '''
+            pattern for file names to include (you should quote this!)
+            (this flag triggers the PathMapper on the inputdir).'''
+)
+parser.add_argument(
+            '-f', '--filter',
+            default = '*',
+            help    = '''
+            filter for file names to include (you should quote this!)
+            (this flag triggers the PathFilter on the inputdir).'''
 )
 parser.add_argument(
             '-d', '--dirsOnly',
@@ -56,6 +66,35 @@ parser.add_argument(
             default = '0',
             help    = 'verbosity level of app'
 )
+
+def ground_prep(options: Namespace, inputdir: Path, outputdir: Path):
+    '''
+    Perform some setup and initial LOG output
+    '''
+    global Env, PFMlogger, LOG, CAW, PLinputFilter
+    Env.inputdir(str(inputdir))
+    Env.outputdir(str(outputdir))
+
+    PLinputFilter       = action.PluginRun( env = Env, options = options)
+    CAW                 = action.Caw(       env = Env, options = options)
+    PFMlogger           = pfmisc.debug(
+                                            verbosity   = int(options.verbosity),
+                                            within      = 'main',
+                                            syslog      = True
+                                        )
+    LOG                 = PFMlogger.qprint
+
+    LOG("Starting growth cycle...")
+    for k,v in options.__dict__.items():
+         LOG("%25s:  [%s]" % (k, v))
+    LOG("")
+    LOG("inputdir  = %s" % str(inputdir))
+    LOG("outputdir = %s" % str(outputdir))
+
+    if len(options.pluginInstanceID):
+        Env.parentPluginInstanceID  = options.pluginInstanceID
+    else:
+        Env.parentPluginInstanceID  = Env.parentPluginInstanceID_discover()['parentPluginInstanceID']
 
 def tree_grow(options: Namespace, input: Path, output: Path = None) -> dict:
     '''
@@ -94,40 +133,24 @@ def tree_grow(options: Namespace, input: Path, output: Path = None) -> dict:
 def main(options: Namespace, inputdir: Path, outputdir: Path):
     global Env, PFMlogger, LOG, CAW, PLinputFilter
 
-    PLinputFilter       = action.PluginRun( env = Env, options = options)
-    CAW                 = action.Caw(       env = Env, options = options)
-    PFMlogger           = pfmisc.debug(
-                                        verbosity   = int(options.verbosity),
-                                        within      = 'main',
-                                        syslog      = True
-                                        )
-    LOG                 = PFMlogger.qprint
-
-    # pudb.set_trace()
-    LOG("Starting growth cycle...")
-    for k,v in options.__dict__.items():
-         LOG("%25s:  [%s]" % (k, v))
-    LOG("")
-    LOG("inputdir  = %s" % str(inputdir))
-    LOG("outputdir = %s" % str(outputdir))
-
-    if len(options.pluginInstanceID):
-        Env.parentPluginInstanceID    = options.pluginInstanceID
-    else:
-        Env.parentPluginInstanceID_discover()
-
+    ground_prep(options, inputdir, outputdir)
     if len(Env.parentPluginInstanceID):
         LOG("Sewing seeds...")
         Path('%s/start.touch' % str(outputdir)).touch()
         output = None
 
-        mapper  = PathMapper(inputdir, outputdir,
+        # Testing -- if options.filter is anything other than '*'
+        # use PathFilter to filter, otherwise use the original
+        # PathMapper. This provides a convenient mechanism to test
+        # either/or object for debugging.
+        if options.filter != '*':
+            mapper  = PathFilter(inputdir, outputdir,
+                             glob       = options.filter,
+                             only_files = not options.dirsOnly,
+                             logger     = LOG)
+        else:
+            mapper  = PathMapper(inputdir, outputdir,
                              glob       = options.pattern,
-                             only_files = not options.dirsOnly)
-
-        mapper  = PathFilter(inputdir, outputdir,
-                             glob       = options.pattern,
-                             logger     = LOG,
                              only_files = not options.dirsOnly)
 
         for input, output in mapper:

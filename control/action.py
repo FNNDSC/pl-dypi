@@ -5,6 +5,10 @@ str_about = '''
     This module is the contact "surface" between dypi and a CUBE
     instance. Control/manipulation of the ChRIS instance is effected
     by a set of CLI scripts that this module creates and then executes.
+
+    NOTE: This module is "fragily" dependent on python-chrisclient and
+    caw! Changes in those modules could break things here rather
+    completely.
 '''
 
 from    .                       import  jobber
@@ -179,7 +183,7 @@ class Caw:
 
         if self.options:
             str_cawCmdfile  = '%s/%s/caw-%s.sh' % ( self.options.outputdir,
-                                                    str_input,
+                                                    str_input.split('/')[-1],
                                                     filteredCopyInstanceID)
 
         with open(str_cawCmdfile, 'w') as f:
